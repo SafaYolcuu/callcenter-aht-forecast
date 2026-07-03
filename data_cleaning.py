@@ -1,43 +1,49 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 from pathlib import Path
 
-input_path = Path(r"C:\Users\mu_sa\OneDrive\Masaüstü\CallCenterDataSets\Time Series\Synthetic Call Center\raw_data\callCenter.data.csv")
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-df = pd.read_csv(input_path)
-df["time_stamp"] = pd.to_datetime(df["time_stamp"])
-df["date"] = df["time_stamp"].dt.date
+file_path = DATA_DIR / "callCenter.data.csv"
+output_path = DATA_DIR / "calls_clean.csv"
 
-daily_counts = df.groupby("date").size().reset_index(name="row_count")
+df = pd.read_csv(file_path)
+print(df.shape)
+print(df.columns.tolist())
 
-print("Toplam gün sayısı:", daily_counts.shape[0])
-print("Günlük ortalama satır:", round(daily_counts["row_count"].mean(), 2))
-print("En az satır:", daily_counts["row_count"].min())
-print("En çok satır:", daily_counts["row_count"].max())
+if "Unnamed: 0" in df.columns:
+    df = df.drop(columns=["Unnamed: 0"])
 
-print("\nİlk 10 gün:")
-print(daily_counts.head(10))
+df["time_stamp"] = pd.to_datetime(
+    df["time_stamp"],
+    format="%m/%d/%y %I:%M %p",
+    errors="coerce"
+)
+df["talk_time"] = pd.to_numeric(df["talk_time"], errors="coerce")
 
-print("\nÖzet istatistik:")
-print(daily_counts["row_count"].describe())
+print("Toplam satır:", len(df))
+print("Parse edilemeyen time_stamp:", df["time_stamp"].isna().sum())
+print("NaN talk_time:", df["talk_time"].isna().sum())
+print("Negatif talk_time:", (df["talk_time"] < 0).sum())
+print("\nAnswered dağılımı:")
+print(df["Answered"].value_counts(dropna=False))
 
-# mesai filtresi
-mesai_start = pd.to_datetime("08:00").time()
-mesai_end = pd.to_datetime("21:30").time()
+df = df.drop(columns=["first_name", "last_name", "calling_number"])
 
-df_mesai = df[df["time_stamp"].dt.time.between(mesai_start, mesai_end)]
-daily_mesai = df_mesai.groupby(df_mesai["time_stamp"].dt.date).size().reset_index(name="row_count")
+before_rows = len(df)
+df = df[df["time_stamp"].notna()]
+df = df[df["talk_time"].notna()]
+df = df[df["talk_time"] >= 0]
+df = df[df["Answered"].isin(["Y", "N"])]
 
-print("\nMesai içi günlük ortalama:", round(daily_mesai["row_count"].mean(), 2))
-print("Mesai içi en az:", daily_mesai["row_count"].min())
-print("Mesai içi en çok:", daily_mesai["row_count"].max())
+print("\nTemizlik sonrası satır:", len(df))
+print("Silinen satır:", before_rows - len(df))
+print("Tarih aralığı:", df["time_stamp"].min(), "->", df["time_stamp"].max())
 
-# grafik
-plt.figure(figsize=(12, 4))
-plt.plot(daily_counts["date"], daily_counts["row_count"])
-plt.title("Günlük çağrı sayısı")
-plt.xlabel("Tarih")
-plt.ylabel("Satır sayısı")
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+aht_valid = df[(df["Answered"] == "Y") & (df["talk_time"] > 0)]
+print("AHT için uygun çağrı:", len(aht_valid))
+print("Ortalama talk_time:", round(aht_valid["talk_time"].mean(), 2))
+
+df.to_csv(output_path, index=False)
+print("Kaydedildi:", output_path)

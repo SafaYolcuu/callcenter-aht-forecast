@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-input_path = Path(r"C:\Users\mu_sa\PycharmProjects\callcenter-aht-forecast\data\calls_clean.csv")
-output_dir = Path(r"C:\Users\mu_sa\PycharmProjects\callcenter-aht-forecast\data")
-output_dir.mkdir(parents=True, exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+
+input_path = DATA_DIR / "calls_clean.csv"
 
 df = pd.read_csv(input_path)
 df["time_stamp"] = pd.to_datetime(df["time_stamp"], errors="coerce")
@@ -41,6 +42,7 @@ grid = pd.DataFrame({"interval_15m": np.concatenate(grid_list)})
 series_15m = grid.merge(agg, on="interval_15m", how="left")
 series_15m["volume"] = series_15m["volume"].fillna(0).astype(int)
 
+
 def weighted_aht(group):
     total_vol = group["volume"].sum()
     if total_vol == 0:
@@ -49,6 +51,7 @@ def weighted_aht(group):
     if valid.empty:
         return np.nan
     return (valid["AHT"] * valid["volume"]).sum() / valid["volume"].sum()
+
 
 def make_period(df_in, freq_name, floor_rule):
     tmp = df_in.copy()
@@ -63,13 +66,14 @@ def make_period(df_in, freq_name, floor_rule):
         )
     ).reset_index()
 
-    out_path = output_dir / f"series_{freq_name}_9to5.csv"
+    out_path = DATA_DIR / f"series_{freq_name}_9to5.csv"
     out.to_csv(out_path, index=False)
     print(f"{freq_name} kaydedildi:", out_path)
     print(f"{freq_name} satir sayisi:", len(out))
     return out
 
-path_15m = output_dir / "series_15m_9to5.csv"
+
+path_15m = DATA_DIR / "series_15m_9to5.csv"
 series_15m.to_csv(path_15m, index=False)
 print("15m kaydedildi:", path_15m)
 print("15m satir sayisi:", len(series_15m))
@@ -79,9 +83,11 @@ print("\n15m gunluk satir dagilimi:")
 print(daily_15m.value_counts().sort_index())
 
 series_1h = make_period(series_15m, "1h", "h")
-series_6h = make_period(series_15m, "6h", "6h")
+series_4h = make_period(series_15m, "4h", "4h")
+series_8h = make_period(series_15m, "8h", "8h")
 
 print("\nOrnek kayitlar:")
-print(series_15m.head(5))
-print(series_1h.head(5))
-print(series_6h.head(5))
+print(series_15m.head(3))
+print(series_1h.head(3))
+print(series_4h.head(3))
+print(series_8h.head(3))
