@@ -22,6 +22,9 @@ df["time_stamp"] = pd.to_datetime(
 )
 df["talk_time"] = pd.to_numeric(df["talk_time"], errors="coerce")
 
+# Ham veri dakika cinsinden; AHT ve WFM raporlari icin saniyeye cevir
+df["talk_time"] = df["talk_time"] * 60
+
 print("Toplam satır:", len(df))
 print("Parse edilemeyen time_stamp:", df["time_stamp"].isna().sum())
 print("NaN talk_time:", df["talk_time"].isna().sum())
@@ -43,7 +46,7 @@ print("Tarih aralığı:", df["time_stamp"].min(), "->", df["time_stamp"].max())
 
 aht_valid = df[(df["Answered"] == "Y") & (df["talk_time"] > 0)]
 print("AHT için uygun çağrı:", len(aht_valid))
-print("Ortalama talk_time:", round(aht_valid["talk_time"].mean(), 2))
+print("Ortalama talk_time (sn):", round(aht_valid["talk_time"].mean(), 2))
 
 df.to_csv(output_path, index=False)
 print("Kaydedildi:", output_path)
